@@ -6,22 +6,32 @@
   <title>{% block title %}Red B2B{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-<body>
+<body class="{{ 'app-page' if g.user else 'auth-page' }}">
+  {% if g.user %}
   <header class="topbar">
-    <div class="wrap topbar-inner">
-      <a class="brand" href="{{ url_for('dashboard') }}">RED <strong>B2B</strong><span class="pilot">Piloto independiente</span></a>
-      {% if g.user %}
-      <nav class="topnav"><a href="{{ url_for('dashboard') }}">Operaciones</a><a href="{{ url_for('supplier_directory') }}">Proveedores</a><a href="{{ url_for('supplier_profile') }}">Mi perfil</a><a href="{{ url_for('relationships') }}">Relaciones</a></nav>
-      <div class="account"><span>{{ g.user['company_name'] }} · Empresa #{{ g.user['company_id'] }}</span>
-        <form method="post" action="{{ url_for('logout') }}"><input type="hidden" name="csrf" value="{{ csrf_token }}"><button class="text-button">Salir</button></form>
-      </div>
-      {% endif %}
+    <div class="brandbox"><a class="brandmark" href="{{ url_for('dashboard') }}" aria-label="Red B2B, inicio">B2B</a><div><a class="brand" href="{{ url_for('dashboard') }}">Red B2B</a><div class="brand-sub">Compras y proveedores</div></div></div>
+    <div class="top-actions"><span class="company-name">{{ g.user['company_name'] }}</span>
+      <details class="mobile-menu"><summary>☰ Menú</summary><nav aria-label="Menú móvil"><a href="{{ url_for('dashboard') }}">Inicio</a><a href="{{ url_for('new_rfq') }}">Nueva solicitud</a><a href="{{ url_for('supplier_directory') }}">Proveedores</a><a href="{{ url_for('relationships') }}">Relaciones</a><a href="{{ url_for('supplier_profile') }}">Mi perfil</a></nav></details>
+      <form method="post" action="{{ url_for('logout') }}"><input type="hidden" name="csrf" value="{{ csrf_token }}"><button class="header-button">Salir</button></form>
     </div>
   </header>
-  <main class="wrap">
+  <div class="shell">
+    <aside class="sidebar"><nav aria-label="Navegación principal">
+      <a class="{{ 'active' if request.endpoint == 'dashboard' }}" href="{{ url_for('dashboard') }}">Inicio</a>
+      <a class="{{ 'active' if request.endpoint == 'new_rfq' }}" href="{{ url_for('new_rfq') }}">Nueva solicitud</a>
+      <a class="{{ 'active' if request.endpoint == 'supplier_directory' }}" href="{{ url_for('supplier_directory') }}">Proveedores</a>
+      <a class="{{ 'active' if request.endpoint == 'relationships' }}" href="{{ url_for('relationships') }}">Relaciones</a>
+      <a class="{{ 'active' if request.endpoint == 'supplier_profile' }}" href="{{ url_for('supplier_profile') }}">Mi perfil</a>
+    </nav><p class="sidebar-note">Entorno de pruebas · Red B2B</p></aside>
+    <main class="main-content"><div class="wrap">
+  {% else %}
+  <main class="auth-surface">
+  {% endif %}
     {% for message in get_flashed_messages() %}<div class="notice" role="status">{{ message }}</div>{% endfor %}
     {% block content %}{% endblock %}
-  </main>
-  <footer class="wrap footer">Sistema de prueba separado de Dallas Fresh App. Las empresas acuerdan sus condiciones directamente.</footer>
+  {% if g.user %}
+      <footer class="footer">Compras y proveedores · Las condiciones comerciales se acuerdan entre empresas.</footer>
+    </div></main></div>
+  {% else %}</main>{% endif %}
 </body>
 </html>

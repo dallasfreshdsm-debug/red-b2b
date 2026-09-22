@@ -1,18 +1,23 @@
 {% extends 'base.html' %}
 {% block title %}Operaciones · Red B2B{% endblock %}
 {% block content %}
-<div class="heading"><div><p class="eyebrow">Mi empresa</p><h1>Operaciones</h1><p class="muted">Solicitudes, propuestas y órdenes en un mismo lugar.</p></div><a class="button primary" href="{{ url_for('new_rfq') }}">Nueva solicitud de compra</a></div>
+<div class="heading"><div><h1>Inicio</h1><p class="muted">Solicitudes, propuestas y órdenes de {{ g.user['company_name'] }}.</p></div><a class="button primary" href="{{ url_for('new_rfq') }}">Nueva solicitud de compra</a></div>
+<div class="metric-grid" aria-label="Resumen de operaciones">
+  <a class="metric" href="#solicitudes">Solicitudes de compra<strong>{{ purchases|length }}</strong><span>Ver solicitudes →</span></a>
+  <a class="metric" href="#invitaciones">Invitaciones recibidas<strong>{{ invitations|length }}</strong><span>Ver invitaciones →</span></a>
+  <a class="metric" href="#ordenes">Órdenes de compra<strong>{{ orders|length }}</strong><span>Ver órdenes →</span></a>
+</div>
 <div class="dashboard-grid">
-  <section class="panel"><div class="panel-head"><h2>Solicitudes de compra</h2><span class="count">{{ purchases|length }}</span></div>
+  <section class="panel" id="solicitudes"><div class="panel-head"><h2>Solicitudes de compra</h2><span class="count">{{ purchases|length }}</span></div>
     {% if purchases %}<div class="list">{% for item in purchases %}<a class="list-item" href="{{ url_for('rfq_detail', rfq_id=item['id']) }}"><span><strong>{{ item['product'] }}</strong><small>{{ item['quantity'] }} {{ item['unit'] }} · {{ item['destination'] }}</small></span><span class="right"><span class="pill">{{ item['status']|status_es }}</span><small>{{ item['quote_count'] }} cotización(es)</small></span></a>{% endfor %}</div>
     {% else %}<p class="empty">Crea una solicitud e invita a proveedores para recibir precios privados.</p>{% endif %}
   </section>
-  <section class="panel"><div class="panel-head"><h2>Invitaciones recibidas</h2><span class="count">{{ invitations|length }}</span></div>
+  <section class="panel" id="invitaciones"><div class="panel-head"><h2>Invitaciones recibidas</h2><span class="count">{{ invitations|length }}</span></div>
     {% if invitations %}<div class="list">{% for item in invitations %}<a class="list-item" href="{{ url_for('rfq_detail', rfq_id=item['id']) }}"><span><strong>{{ item['product'] }}</strong><small>{{ item['buyer_name'] }} · {{ item['quantity'] }} {{ item['unit'] }}</small></span><span class="pill {{ 'soft' if item['quote_id'] else '' }}">{{ 'Cotizada' if item['quote_id'] else 'Cotizar' }}</span></a>{% endfor %}</div>
     {% else %}<p class="empty">Aquí aparecerán las empresas que te inviten a cotizar.</p>{% endif %}
   </section>
 </div>
-<section class="panel space"><div class="panel-head"><h2>Órdenes de compra</h2><span class="count">{{ orders|length }}</span></div>
+<section class="panel space" id="ordenes"><div class="panel-head"><h2>Órdenes de compra</h2><span class="count">{{ orders|length }}</span></div>
   {% if orders %}<div class="list">{% for item in orders %}<a class="list-item" href="{{ url_for('po_detail', po_id=item['id']) }}"><span><strong>Orden #{{ item['id'] }} · {{ item['product'] }}</strong><small>{{ item['buyer_name'] }} → {{ item['supplier_name'] }} · {{ item['quantity'] }} {{ item['unit'] }}</small></span><span class="right"><span class="pill">{{ item['status']|status_es }}</span><small>{{ item['currency'] }} {{ item['total_cents']|money }}</small></span></a>{% endfor %}</div>
   {% else %}<p class="empty">Las órdenes aprobadas aparecerán aquí.</p>{% endif %}
 </section>
