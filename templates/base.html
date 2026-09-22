@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{% block title %}Red B2B{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <a class="brand" href="{{ url_for('dashboard') }}">RED <strong>B2B</strong><span class="pilot">Piloto independiente</span></a>
+      {% if g.user %}
+      <nav class="topnav"><a href="{{ url_for('dashboard') }}">Operaciones</a><a href="{{ url_for('supplier_directory') }}">Proveedores</a><a href="{{ url_for('supplier_profile') }}">Mi perfil</a><a href="{{ url_for('relationships') }}">Relaciones</a></nav>
+      <div class="account"><span>{{ g.user['company_name'] }} · Empresa #{{ g.user['company_id'] }}</span>
+        <form method="post" action="{{ url_for('logout') }}"><input type="hidden" name="csrf" value="{{ csrf_token }}"><button class="text-button">Salir</button></form>
+      </div>
+      {% endif %}
+    </div>
+  </header>
+  <main class="wrap">
+    {% for message in get_flashed_messages() %}<div class="notice" role="status">{{ message }}</div>{% endfor %}
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="wrap footer">Sistema de prueba separado de Dallas Fresh App. Las empresas acuerdan sus condiciones directamente.</footer>
+</body>
+</html>

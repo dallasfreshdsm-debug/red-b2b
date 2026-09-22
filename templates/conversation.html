@@ -1,0 +1,8 @@
+{% extends 'base.html' %}
+{% block title %}Conversación · Red B2B{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for('rfq_detail',rfq_id=rfq['id']) }}">← Solicitud #{{ rfq['id'] }}</a>
+<div class="heading"><div><p class="eyebrow">Conversación privada · Solicitud #{{ rfq['id'] }}</p><h1>{{ rfq['buyer_name'] }} y {{ supplier_name }}</h1><p class="muted">Producto: {{ rfq['product'] }}. Las condiciones de la operación se acuerdan entre ambas empresas.</p></div></div>
+<section class="panel compact form-panel"><h2>Mensajes</h2>{% for item in messages %}<div class="message"><strong>{{ item['sender_name'] }}</strong><small>{{ item['created_at'] }}</small><p>{{ item['body'] }}</p></div>{% else %}<p class="empty">Aún no hay mensajes. Puedes preguntar por disponibilidad, entrega o condiciones de pago.</p>{% endfor %}
+<form method="post" class="form-stack"><input type="hidden" name="csrf" value="{{ csrf_token }}"><label>Escribe un mensaje<textarea name="body" maxlength="2000" rows="3" required></textarea></label><button class="button primary">Enviar mensaje</button></form></section>
+{% endblock %}

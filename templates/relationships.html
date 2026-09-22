@@ -1,0 +1,8 @@
+{% extends 'base.html' %}
+{% block title %}Relaciones · Red B2B{% endblock %}
+{% block content %}
+<div class="heading"><div><p class="eyebrow">Mi empresa</p><h1>Compradores y relaciones</h1><p class="muted">Autoriza a las empresas que podrán invitarte cuando cierres solicitudes a nuevos compradores.</p></div></div>
+<section class="panel"><div class="panel-head"><h2>Solicitudes</h2><span class="count">{{ buyers|length }}</span></div>
+{% for buyer in buyers %}<div class="list-item"><span><strong>{{ buyer['name'] }}</strong><small>{{ buyer['city'] }}, {{ buyer['country'] }} · Empresa #{{ buyer['buyer_id'] }}{% if buyer['verified'] %} · Verificada{% endif %}</small></span><span>{% if buyer['status']=='requested' %}<form method="post" action="{{ url_for('decide_relationship',buyer_id=buyer['buyer_id'],decision='aprobar') }}" class="inline-form"><input type="hidden" name="csrf" value="{{ csrf_token }}"><button class="button small">Aprobar</button></form><form method="post" action="{{ url_for('decide_relationship',buyer_id=buyer['buyer_id'],decision='rechazar') }}" class="inline-form"><input type="hidden" name="csrf" value="{{ csrf_token }}"><button class="button small">Rechazar</button></form>{% else %}<span class="pill">{{ buyer['status']|status_es }}</span>{% endif %}</span></div>{% else %}<p class="empty">Todavía no hay solicitudes de relación comercial.</p>{% endfor %}
+</section>
+{% endblock %}

@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}Mi perfil proveedor · Red B2B{% endblock %}
+{% block content %}
+<div class="heading"><div><p class="eyebrow">Mi empresa</p><h1>Perfil de proveedor</h1><p class="muted">Decide cómo entregas y quién puede invitarte a cotizar.</p></div></div>
+<section class="panel form-panel"><form method="post" class="form-stack"><input type="hidden" name="csrf" value="{{ csrf_token }}">
+  <label>Qué vendes y cómo atiendes<textarea name="description" rows="3" maxlength="500">{{ profile['description'] if profile else '' }}</textarea></label>
+  <fieldset><legend>Opciones de entrega</legend><label class="choice"><input type="checkbox" name="own_delivery" value="1" {{ 'checked' if profile and profile['own_delivery'] }}> Entrega propia</label><label class="choice"><input type="checkbox" name="pickup" value="1" {{ 'checked' if not profile or profile['pickup'] }}> Recoger en mi bodega</label><label class="choice"><input type="checkbox" name="third_party_shipping" value="1" {{ 'checked' if profile and profile['third_party_shipping'] }}> Envío con tercero</label></fieldset>
+  <label>Zona de servicio<input name="service_area" maxlength="160" value="{{ profile['service_area'] if profile else '' }}" placeholder="Texas y estados vecinos"></label>
+  <label>Dirección de pickup (visible a quien pueda descubrirte)<input name="pickup_address" maxlength="160" value="{{ profile['pickup_address'] if profile else '' }}"></label>
+  <label>Condiciones de pago sugeridas para nuevas cotizaciones<input name="default_payment_terms" maxlength="160" value="{{ profile['default_payment_terms'] if profile else '' }}" placeholder="Prepago / Net 7 / según acuerdo"></label>
+  <label class="choice"><input type="checkbox" name="accepts_new_buyers" value="1" {{ 'checked' if not profile or profile['accepts_new_buyers'] }}> Permitir invitaciones de nuevas empresas</label>
+  <p class="muted">Si desactivas esta opción, solo compradores con una relación aprobada podrán enviarte solicitudes. La liberación de cada orden sigue siendo tu decisión.</p>
+  <button class="button primary">Guardar perfil</button>
+</form></section>
+{% endblock %}

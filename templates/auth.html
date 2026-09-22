@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Crear empresa' if action == 'registrar' else 'Entrar' }} · Red B2B{% endblock %}
+{% block content %}
+<section class="auth-card">
+  <p class="eyebrow">Compras y proveedores</p>
+  <h1>{{ 'Registrar empresa' if action == 'registrar' else 'Entrar a mi empresa' }}</h1>
+  <form method="post" class="form-stack">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    {% if action == 'registrar' %}
+    <label>Nombre de la empresa<input name="company_name" required maxlength="160" autocomplete="organization"></label>
+    <div class="two"><label>Ciudad<input name="city" required maxlength="80"></label><label>País<input name="country" value="Estados Unidos" required maxlength="80"></label></div>
+    {% endif %}
+    <label>Correo de administrador<input name="email" type="email" required autocomplete="email"></label>
+    <label>Contraseña<input name="password" type="password" required {% if action == 'registrar' %}minlength="12"{% endif %} autocomplete="{{ 'new-password' if action == 'registrar' else 'current-password' }}"></label>
+    {% if action == 'registrar' %}<p class="muted">Para este piloto, cada empresa puede comprar y vender. Usa una contraseña de al menos 12 caracteres.</p>{% endif %}
+    <button class="button primary">{{ 'Crear empresa' if action == 'registrar' else 'Entrar' }}</button>
+  </form>
+  <p class="muted bottom-link">{% if action == 'registrar' %}¿Ya tienes empresa? <a href="{{ url_for('login') }}">Entrar</a>{% else %}¿Es tu primera vez? <a href="{{ url_for('register') }}">Registrar empresa</a>{% endif %}</p>
+</section>
+{% endblock %}
