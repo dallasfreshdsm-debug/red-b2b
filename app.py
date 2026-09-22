@@ -8,12 +8,12 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from functools import wraps
 from pathlib import Path
 
-from flask import Flask, abort, flash, g, redirect, render_template, request, session, url_for
+from flask import Flask, abort, flash, g, redirect, render_template, request, session, url_for, Response
 from werkzeug.security import check_password_hash, generate_password_hash
 
 
 ROOT = Path(__file__).resolve().parent
-app = Flask(__name__)
+app = Flask(__name__, static_folder="statics")
 app.config.update(
     SECRET_KEY=os.environ.get("B2B_SECRET_KEY", secrets.token_hex(32)),
     DATABASE=os.environ.get("B2B_DATABASE", str(ROOT / "instance" / "red_b2b.sqlite3")),
@@ -73,6 +73,16 @@ def close_db(_error):
     db = g.pop("db", None)
     if db is not None:
         db.close()
+
+
+@app.before_request
+def require_demo_password():
+    """Keep the public test deployment behind one shared pilot password."""
+    expected = os.environ.get("B2B_DEMO_PASSWORD")
+    if expected:
+        auth = request.authorization
+        if not auth or auth.username != "demo" or not secrets.compare_digest(auth.password or "", expected):
+            return Response("Acceso de pruebas", 401, {"WWW-Authenticate": 'Basic realm="Red B2B pruebas"'})
 
 
 @app.before_request
