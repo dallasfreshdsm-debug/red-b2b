@@ -29,6 +29,15 @@ def init_db():
     path.parent.mkdir(parents=True, exist_ok=True)
     db = sqlite3.connect(path)
     db.executescript((ROOT / "schema.sql").read_text())
+    product_columns = {row[1] for row in db.execute("PRAGMA table_info(buyer_products)")}
+    if "external_id" not in product_columns:
+        db.execute("ALTER TABLE buyer_products ADD COLUMN external_id TEXT")
+    if "synced_at" not in product_columns:
+        db.execute("ALTER TABLE buyer_products ADD COLUMN synced_at TEXT")
+    if "sales_feed_unit" not in product_columns:
+        db.execute("ALTER TABLE buyer_products ADD COLUMN sales_feed_unit TEXT NOT NULL DEFAULT 'sale'")
+    db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_buyer_products_external "
+               "ON buyer_products(buyer_id,source,external_id) WHERE external_id IS NOT NULL")
     # V1 kept one PO per RFQ. Remove that constraint while retaining pilot data.
     if any(index[3] == "u" for index in db.execute("PRAGMA index_list(purchase_orders)")):
         db.execute("PRAGMA foreign_keys=OFF")

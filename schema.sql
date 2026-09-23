@@ -170,7 +170,17 @@ CREATE TABLE IF NOT EXISTS buyer_products (
   lead_days INTEGER NOT NULL DEFAULT 1 CHECK(lead_days BETWEEN 0 AND 90),
   waste_percent TEXT NOT NULL DEFAULT '0',
   source TEXT NOT NULL DEFAULT 'manual',
+  external_id TEXT,
+  synced_at TEXT,
+  sales_feed_unit TEXT NOT NULL DEFAULT 'sale' CHECK(sales_feed_unit IN ('sale','purchase')),
   UNIQUE(id,buyer_id)
+);
+CREATE TABLE IF NOT EXISTS external_daily_sales (
+  buyer_id INTEGER NOT NULL REFERENCES companies(id),
+  product_id INTEGER NOT NULL REFERENCES buyer_products(id),
+  day TEXT NOT NULL, quantity TEXT NOT NULL,
+  source TEXT NOT NULL DEFAULT 'quickbooks',
+  PRIMARY KEY(buyer_id,product_id,day,source)
 );
 CREATE TABLE IF NOT EXISTS product_usage (
   id INTEGER PRIMARY KEY, buyer_id INTEGER NOT NULL REFERENCES companies(id),

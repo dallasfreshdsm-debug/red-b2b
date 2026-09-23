@@ -1,8 +1,13 @@
 """Buyer-owned inventory estimates, private supplier prices and direct purchase orders."""
 
 from collections import defaultdict
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal, ROUND_CEILING
+import json
+import os
+from urllib.error import URLError, HTTPError
+from urllib.parse import urlsplit
+from urllib.request import Request, build_opener, HTTPRedirectHandler
 
 from flask import abort, flash, g, redirect, render_template, request, url_for
 
@@ -24,15 +29,28 @@ def install(app, get_db, admin_required, login_required, audit, decimal_value, c
             "WHERE buyer_id=? AND product_id=? AND id>? ORDER BY id",
             (buyer, pid, product["snapshot_usage_id"]),
         ).fetchall()
-        consumption = sum(((-1 if u["kind"] == "receipt" else 1) * Decimal(u["quantity"]) for u in used), Decimal(0))
+        synced = product["source"] == "quickbooks" and bool(product["synced_at"])
+        consumption = sum(((-1 if u["kind"] == "receipt" else 1) * Decimal(u["quantity"])
+                           for u in used if not (synced and u["kind"] == "sale")), Decimal(0))
+        if synced:
+            external = db.execute(
+                "SELECT day,quantity FROM external_daily_sales WHERE buyer_id=? AND product_id=? "
+                "AND day>=date('now','-29 days')", (buyer,pid),
+            ).fetchall()
+            factor = Decimal(product["pack_size"]) if product["sales_feed_unit"] == "purchase" else Decimal(1)
+            external_after_count = sum((Decimal(x["quantity"]) * factor for x in external
+                                        if x["day"] > product["snapshot_at"][:10]), Decimal(0))
+            consumption += external_after_count
+            daily = sum((Decimal(x["quantity"]) * factor for x in external), Decimal(0)) / 30
+        else:
+            sales = db.execute(
+                "SELECT quantity FROM product_usage WHERE buyer_id=? AND product_id=? "
+                "AND kind='sale' AND date(occurred_at)>=date('now','-29 days')",
+                (buyer, pid),
+            ).fetchall()
+            daily = sum((Decimal(x["quantity"]) for x in sales), Decimal(0)) / 30
         stock = max(Decimal(0), Decimal(product["stock_snapshot"]) - consumption)
-        # Sales averaged over the last 30 calendar days; recorded waste is counted once.
-        sales = db.execute(
-            "SELECT quantity FROM product_usage WHERE buyer_id=? AND product_id=? "
-            "AND kind='sale' AND date(occurred_at)>=date('now','-29 days')",
-            (buyer, pid),
-        ).fetchall()
-        daily = sum((Decimal(x["quantity"]) for x in sales), Decimal(0)) / 30
+        # A dated invoice can only be assigned to a day, not an exact count time.
         forecast = daily * product["lead_days"] * (1 + Decimal(product["waste_percent"]) / 100)
         pending = db.execute(
             "SELECT i.quantity,i.pack_size FROM direct_order_items i "
@@ -44,7 +62,7 @@ def install(app, get_db, admin_required, login_required, audit, decimal_value, c
         shortage = max(Decimal(0), Decimal(product["stock_target"]) + forecast - stock - on_order)
         boxes = int((shortage / Decimal(product["pack_size"])).to_integral_value(rounding=ROUND_CEILING))
         return {"product": product, "stock": stock, "forecast": forecast,
-                "on_order": on_order, "boxes": boxes, "daily": daily}
+                "on_order": on_order, "boxes": boxes, "daily": daily, "sales_synced": synced}
 
     @app.get("/compras")
     @login_required
@@ -134,7 +152,101 @@ def install(app, get_db, admin_required, login_required, audit, decimal_value, c
             "SELECT o.*,c.name supplier_name FROM product_offers o JOIN companies c ON c.id=o.supplier_id "
             "WHERE o.buyer_id=? ORDER BY o.product_id,c.name", (buyer,),
         ).fetchall()
-        return render_template("buying_config.html",products=products,suppliers=suppliers,offers=offers)
+        sync_company=os.environ.get("B2B_SYNC_COMPANY_ID", "").strip()
+        can_sync=sync_company.isdigit() and int(sync_company)==buyer
+        connector_ready=can_sync and bool(os.environ.get("B2B_CONNECTOR_URL") and os.environ.get("B2B_CONNECTOR_READ_KEY"))
+        last_sync=db.execute(
+            "SELECT MAX(synced_at) FROM buyer_products WHERE buyer_id=? AND source='quickbooks'", (buyer,)
+        ).fetchone()[0]
+        return render_template("buying_config.html",products=products,suppliers=suppliers,offers=offers,
+                               can_sync=can_sync,connector_ready=connector_ready,last_sync=last_sync)
+
+    @app.post("/compras/sincronizar-productos")
+    @admin_required
+    def sync_connector_products():
+        buyer=g.user["company_id"]
+        configured_id=os.environ.get("B2B_SYNC_COMPANY_ID", "").strip()
+        if not configured_id.isdigit() or int(configured_id)!=buyer:
+            abort(403)
+        base=os.environ.get("B2B_CONNECTOR_URL", "").rstrip("/")
+        key=os.environ.get("B2B_CONNECTOR_READ_KEY", "")
+        parsed=urlsplit(base)
+        if not key or parsed.scheme!="https" or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment or parsed.path not in ("", "/"):
+            flash("Falta configurar una URL HTTPS y la clave de lectura del conector en el servidor.")
+            return redirect(url_for("manage_products"))
+
+        class NoRedirect(HTTPRedirectHandler):
+            def redirect_request(self, req, fp, code, msg, headers, newurl):
+                return None
+
+        req=Request(base + "/api/b2b-read", headers={"X-B2B-Read-Key":key,"Accept":"application/json"})
+        try:
+            with build_opener(NoRedirect()).open(req, timeout=45) as response:
+                payload=json.loads(response.read(2_000_001))
+            products=payload.get("products")
+            sales=payload.get("sales")
+            window_start=payload.get("sales_window_start", "")
+            if (not payload.get("ok") or payload.get("read_only") is not True or
+                payload.get("complete") is not True or not isinstance(products,list) or
+                not isinstance(sales,list) or len(products)>20000 or len(sales)>50000 or
+                len(json.dumps(payload))>2_000_000):
+                raise ValueError("Respuesta de catálogo no válida.")
+            if len(window_start)!=10 or date.fromisoformat(window_start)>date.today() or date.fromisoformat(window_start)<date.today()-timedelta(days=31):
+                raise ValueError("Ventana de ventas inválida.")
+            expected_env=os.environ.get("B2B_CONNECTOR_EXPECTED_ENV", "").strip()
+            if expected_env and payload.get("environment")!=expected_env:
+                raise ValueError("El entorno de QuickBooks no coincide con el configurado.")
+            clean=[]
+            ids=set()
+            for p in products:
+                if not isinstance(p,dict):
+                    raise ValueError("Producto inválido.")
+                external_id=str(p.get("external_id", "")).strip()
+                name=str(p.get("name", "")).strip()
+                if not external_id or len(external_id)>80 or not name or len(name)>160 or external_id in ids:
+                    raise ValueError("Producto sin identificador único o nombre válido.")
+                ids.add(external_id)
+                clean.append((external_id,name))
+            sales_rows=[]
+            for item in sales:
+                if not isinstance(item,dict):
+                    raise ValueError("Renglón de ventas inválido.")
+                external_id=str(item.get("external_id", "")).strip()
+                day=str(item.get("date", "")).strip()
+                qty=decimal_value(item.get("quantity"),"ventas",allow_zero=True)
+                if len(day)!=10 or date.fromisoformat(day)<date.fromisoformat(window_start) or date.fromisoformat(day)>date.today() or len(external_id)>80:
+                    raise ValueError("Fecha o producto de venta inválido.")
+                sales_rows.append((external_id,day,str(qty)))
+        except (URLError,HTTPError,TimeoutError,ValueError,TypeError,OverflowError) as exc:
+            app.logger.warning("Falló la lectura del catálogo B2B: %s", type(exc).__name__)
+            flash("No se pudo leer el catálogo. Verifica conector, autorización y entorno; no se cambió ningún producto.")
+            return redirect(url_for("manage_products"))
+        db=get_db()
+        with db:
+            for external_id,name in clean:
+                db.execute(
+                    "INSERT INTO buyer_products(buyer_id,name,source,external_id,synced_at) "
+                    "VALUES(?,?,'quickbooks',?,CURRENT_TIMESTAMP) "
+                    "ON CONFLICT(buyer_id,source,external_id) WHERE external_id IS NOT NULL "
+                    "DO UPDATE SET name=excluded.name,synced_at=CURRENT_TIMESTAMP",
+                    (buyer,name,external_id),
+                )
+            mappings={row["external_id"]:row["id"] for row in db.execute(
+                "SELECT id,external_id FROM buyer_products WHERE buyer_id=? AND source='quickbooks' AND external_id IS NOT NULL",
+                (buyer,),
+            ).fetchall()}
+            db.execute("DELETE FROM external_daily_sales WHERE buyer_id=? AND source='quickbooks'",(buyer,))
+            daily_totals=defaultdict(Decimal)
+            for external_id,day,qty in sales_rows:
+                if external_id in mappings:
+                    daily_totals[mappings[external_id],day]+=Decimal(qty)
+            db.executemany(
+                "INSERT INTO external_daily_sales(buyer_id,product_id,day,quantity) VALUES(?,?,?,?)",
+                [(buyer,pid,day,str(qty)) for (pid,day),qty in daily_totals.items()],
+            )
+            audit(db,"company",buyer,"catalog_read_only_synced")
+        flash(f"Se leyeron {len(clean)} productos y ventas de {len(daily_totals)} producto/día. Revisa unidades, conteo y proveedores antes de ordenar.")
+        return redirect(url_for("manage_products"))
 
     @app.post("/compras/productos/<int:product_id>/conteo")
     @admin_required
@@ -153,6 +265,34 @@ def install(app, get_db, admin_required, login_required, audit, decimal_value, c
                        (str(qty),g.user["company_id"],product_id,product_id,g.user["company_id"]))
             audit(db,"product",product_id,"stock_count")
         flash("Conteo actualizado; se descontará el consumo posterior.")
+        return redirect(url_for("manage_products"))
+
+    @app.post("/compras/productos/<int:product_id>/configurar")
+    @admin_required
+    def configure_product(product_id):
+        owned_product(product_id)
+        try:
+            purchase_unit=request.form.get("purchase_unit", "").strip()
+            sale_unit=request.form.get("sale_unit", "").strip()
+            if not purchase_unit or len(purchase_unit)>30 or not sale_unit or len(sale_unit)>30:
+                raise ValueError("Revisa las unidades.")
+            pack=decimal_value(request.form.get("pack_size"),"unidades por caja")
+            target=decimal_value(request.form.get("stock_target"),"objetivo",allow_zero=True)
+            waste=decimal_value(request.form.get("waste_percent"),"merma",allow_zero=True)
+            sales_feed_unit=request.form.get("sales_feed_unit", "sale")
+            lead=int(request.form.get("lead_days", ""))
+            if lead<0 or lead>90 or waste>100 or sales_feed_unit not in ("sale","purchase"):
+                raise ValueError("Revisa el plazo y la merma.")
+        except (ValueError,OverflowError) as exc:
+            flash(str(exc))
+            return redirect(url_for("manage_products"))
+        db=get_db()
+        with db:
+            db.execute("UPDATE buyer_products SET purchase_unit=?,sale_unit=?,pack_size=?,stock_target=?,"
+                       "lead_days=?,waste_percent=?,sales_feed_unit=? WHERE id=? AND buyer_id=?",
+                       (purchase_unit,sale_unit,str(pack),str(target),lead,str(waste),sales_feed_unit,product_id,g.user["company_id"]))
+            audit(db,"product",product_id,"replenishment_config_updated")
+        flash("Presentación y objetivos guardados.")
         return redirect(url_for("manage_products"))
 
     @app.post("/compras/productos/<int:product_id>/consumo")
