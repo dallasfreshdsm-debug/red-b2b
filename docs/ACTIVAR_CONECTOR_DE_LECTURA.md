@@ -1,0 +1,13 @@
+# Activar lectura de productos y ventas en la empresa piloto
+
+Este piloto requiere **dos actualizaciones de repositorios**: primero el Connector con la ruta nueva `/api/b2b-read` y después Red B2B. Ambas versiones conservan las rutas anteriores. No cambiar la configuración actual de facturación de Dallas Fresh ni borrar los discos/bases de datos existentes.
+
+1. Comparar el `app.py` actual de GitHub del Connector con el paquete de referencia del 21 de septiembre. Si coincide, actualizarlo con `DFCONNECTOR_LECTURA_B2B_23SEP.zip`. Si cambió después de esa fecha, integrar **solo la nueva ruta de lectura y la nueva variable** al código más reciente; no sustituir `app.py` completo ni modificar sus funciones de facturación. No cambiar su base ni sus parámetros existentes.
+2. En Render del Connector, generar un secreto nuevo y largo para `B2B_READ_KEY`. Debe ser **distinto** de `APP_SYNC_KEY`. No pegarlo en GitHub ni compartirlo en el chat. La nueva ruta es de solo lectura y no habilita invoice writes.
+3. En Render de Red B2B, añadir `B2B_CONNECTOR_URL` con la URL HTTPS exacta del Connector, `B2B_CONNECTOR_READ_KEY` con el mismo valor de `B2B_READ_KEY`, y `B2B_CONNECTOR_EXPECTED_ENV` con `sandbox` o `production` según el Connector.
+4. Entrar a Red B2B como administrador de la empresa piloto, abrir **Configurar productos y conexión** y copiar el número mostrado como *identificador de esta empresa B2B*. En Render de Red B2B, poner ese número en `B2B_SYNC_COMPANY_ID`. Esta restricción es deliberada porque el Connector disponible hoy solo apunta a un realm de QuickBooks.
+5. Esperar que se desplieguen ambos servicios. Abrir **Configurar productos y conexión → Sincronizar productos ahora**. Comprobar nombres de productos y fecha del último corte. Abrir un producto, ajustar unidades (libra o caja), cantidad por caja, objetivo y conteo físico. Agregar sus proveedores y precios privados. Ir a **Compras a proveedores → Tu pedido habitual** y revisar las sugerencias antes de generar órdenes.
+
+Si falla la sincronización, no se borran productos ni ventas anteriores. Comprobar la URL HTTPS, que las dos claves coinciden, que el Connector tiene QuickBooks conectado y que ambos servicios usan el mismo entorno. El endpoint agregado lee invoices de los últimos 30 días; debe probarse primero en sandbox. La predicción sigue siendo aproximada, no un conteo físico.
+
+**Universalización pendiente:** no registrar una segunda empresa en `B2B_SYNC_COMPANY_ID` ni quitar esa validación para compartir el Connector. Antes debe incorporar autorización OAuth y realm aislados por empresa, claves o permisos por tenant y adaptadores para otros sistemas; cada empresa debe autorizar su propia fuente de datos.
