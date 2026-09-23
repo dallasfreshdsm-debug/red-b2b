@@ -12,7 +12,10 @@ Este archivo distingue lo probado en el prototipo de las decisiones acumuladas q
 | Condiciones de pago y liberación | El comprador aprueba y el proveedor libera manualmente. La red no procesa pagos ni garantiza crédito |
 | Chat contextual | Conversación privada por comprador/proveedor vinculada a la RFQ, accesible antes y después de la PO; falta Push y adjuntos |
 | Recepción y desempeño | Se registra recibido/rechazado por renglón; faltan documentos, factura de proveedor, pagos y métricas de historial |
-| Marketplace, oportunidades, IA y compras predictivas | Pendiente; conservar privacidad y aprobación humana |
+| Reposición predictiva inicial | Disponible desde **Compras a proveedores**: presentación compra/venta, conteo, ventas/merma/consumo manual, stock objetivo, promedio de ventas de 30 días, plazo y órdenes pendientes; sugerencia aproximada redondeada a cajas completas. Falta fuente automática de ventas/QuickBooks |
+| Ofertas privadas y compra directa | La empresa compradora registra precios privados vigentes por proveedor y producto; puede elegir proveedor y cantidades y crear una orden por proveedor. El proveedor la libera y el comprador confirma recepción completa. Sin fletes, recepciones parciales ni cotización automática |
+| Historial de órdenes | Filtro por fecha y proveedor para órdenes directas y órdenes derivadas de cotizaciones, limitado a la empresa compradora |
+| Marketplace, oportunidades e IA | Pendiente; conservar privacidad y aprobación humana |
 | Red logística y consolidación | Pendiente después de validar compras; incluye transportistas, carga parcial, temperatura, peso, etapas y POD |
 | México–EE. UU. e idiomas | Pendiente; diseñar tramos y controles documentales antes de habilitar operaciones reales |
 | App unificada con Dallas Fresh | Pendiente de validar la red independiente y acordar contrato de integración |
