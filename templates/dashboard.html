@@ -1,7 +1,8 @@
 {% extends 'base.html' %}
 {% block title %}Operaciones · Red B2B{% endblock %}
 {% block content %}
-<div class="heading"><div><h1>Inicio</h1><p class="muted">Solicitudes, propuestas y órdenes de {{ g.user['company_name'] }}.</p></div><a class="button primary" href="{{ url_for('new_rfq') }}">Nueva solicitud de compra</a></div>
+<div class="heading"><div><p class="eyebrow">Compras a proveedores · {{ g.user['company_name'] }}</p><h1>Inicio</h1><p class="muted">Solicitudes, propuestas y órdenes de {{ g.user['company_name'] }}.</p></div><a class="button primary" href="{{ url_for('buying_home') }}">Preparar mi compra</a></div>
+<p class="muted"><a href="{{ url_for('new_rfq') }}">Solicitar cotizaciones privadas</a> · <a href="{{ url_for('manage_products') }}">Configurar inventario y proveedores</a></p>
 <div class="metric-grid" aria-label="Resumen de operaciones">
   <a class="metric" href="#solicitudes">Solicitudes de compra<strong>{{ purchases|length }}</strong><span>Ver solicitudes →</span></a>
   <a class="metric" href="#invitaciones">Invitaciones recibidas<strong>{{ invitations|length }}</strong><span>Ver invitaciones →</span></a>
@@ -21,4 +22,5 @@
   {% if orders %}<div class="list">{% for item in orders %}<a class="list-item" href="{{ url_for('po_detail', po_id=item['id']) }}"><span><strong>Orden #{{ item['id'] }} · {{ item['product'] }}</strong><small>{{ item['buyer_name'] }} → {{ item['supplier_name'] }} · {{ item['quantity'] }} {{ item['unit'] }}</small></span><span class="right"><span class="pill">{{ item['status']|status_es }}</span><small>{{ item['currency'] }} {{ item['total_cents']|money }}</small></span></a>{% endfor %}</div>
   {% else %}<p class="empty">Las órdenes aprobadas aparecerán aquí.</p>{% endif %}
 </section>
+{% if direct_incoming %}<section class="panel space"><div class="panel-head"><h2>Órdenes directas recibidas como proveedor</h2><span class="count">{{ direct_incoming|length }}</span></div><div class="list">{% for item in direct_incoming %}<a class="list-item" href="{{ url_for('direct_order_detail',order_id=item['id']) }}"><span><strong>Compra directa #{{ item['id'] }} de {{ item['buyer_name'] }}</strong><small>{{ item['created_at'] }}</small></span><span class="right"><span class="pill">{{ item['status']|status_es }}</span><small>{{ item['currency'] }} {{ item['total_cents']|money }}</small></span></a>{% endfor %}</div></section>{% endif %}
 {% endblock %}

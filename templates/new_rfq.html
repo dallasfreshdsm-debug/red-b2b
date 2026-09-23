@@ -1,16 +1,38 @@
 {% extends 'base.html' %}
-{% block title %}Nueva solicitud · Red B2B{% endblock %}
+{% block title %}Mi compra · Red B2B{% endblock %}
 {% block content %}
-<a class="back" href="{{ url_for('dashboard') }}">← Operaciones</a>
-<div class="heading"><div><p class="eyebrow">Compras</p><h1>Nueva solicitud de cotización</h1><p class="muted">Cada proveedor recibirá la solicitud y enviará su precio en privado.</p></div></div>
-<div class="panel form-panel"><form method="post" class="form-stack"><input type="hidden" name="csrf" value="{{ csrf_token }}">
-  <fieldset><legend>Productos a comprar</legend><p class="muted">Completa tantos renglones como necesites. Deja los demás vacíos.</p>
-  {% for n in range(1,7) %}<div class="product-row"><strong>Producto {{ n }}</strong><div class="two"><label>Producto<input name="item_product" maxlength="160" placeholder="Tomate Roma" {{ 'required' if n==1 }}></label><label>Presentación / requisitos<input name="item_specification" maxlength="500" placeholder="Calibre, empaque, calidad"></label></div><div class="two"><label>Cantidad<input name="item_quantity" type="number" min="0.001" step="any" placeholder="40" {{ 'required' if n==1 }}></label><label>Unidad<input name="item_unit" maxlength="30" placeholder="cajas" {{ 'required' if n==1 }}></label></div></div>{% endfor %}
-  </fieldset>
-  <div class="two"><label>Destino<input name="destination" required maxlength="160" placeholder="Des Moines, IA"></label><label>Fecha requerida<input name="required_date" type="date" min="{{ today }}" required></label></div>
-  <fieldset><legend>Invitar proveedores</legend><p class="muted">Solo los seleccionados pueden ver y responder esta solicitud.</p>
-  {% for supplier in suppliers %}<label class="choice"><input type="checkbox" name="supplier_id" value="{{ supplier['id'] }}"><span><strong>{{ supplier['name'] }}</strong><small>Empresa #{{ supplier['id'] }} · {{ supplier['city'] }}, {{ supplier['country'] }}</small></span></label>{% else %}<p class="empty">Registra primero otra empresa para poder invitarla.</p>{% endfor %}
-  </fieldset>
-  <button class="button primary" {% if not suppliers %}disabled{% endif %}>Enviar solicitud</button>
-</form></div>
+<div class="heading"><div><h1>Mi compra</h1><p class="muted">Busca lo que necesitas para surtir, arma tu lista y solicita precios a proveedores.</p></div></div>
+<form id="buying-form" method="post" class="buying-layout">
+  <input type="hidden" name="csrf" value="{{ csrf_token }}">
+  <section class="panel buying-cart" aria-labelledby="cart-heading">
+    <div class="buying-card-head"><h2 id="cart-heading">Mi compra</h2><span class="count" id="cart-count">0 productos</span></div>
+    <p class="muted">Busca y agrega productos. Toca una cantidad para modificarla o quita un producto de tu lista.</p>
+    <label for="quick-product-search" class="visually-hidden">Buscar producto para agregar</label>
+    <input id="quick-product-search" class="buying-search" type="search" placeholder="Buscar y agregar producto…" autocomplete="off">
+    <div id="quick-results" class="quick-results" aria-live="polite"></div>
+    <div id="cart-lines" class="cart-lines" aria-live="polite"><p class="empty">Tu lista de compra está vacía.</p></div>
+    <div id="cart-fields"></div>
+    <div class="buying-details form-stack">
+      <div class="two"><label>Destino de entrega<input name="destination" required maxlength="160" placeholder="Dallas, TX"></label><label>Fecha en que lo necesitas<input name="required_date" type="date" min="{{ today }}" required></label></div>
+      <fieldset><legend>Enviar solicitud a proveedores</legend><p class="muted">Solo los proveedores seleccionados podrán ver tu solicitud. Sus precios serán privados.</p>
+        {% for supplier in suppliers %}<label class="choice"><input type="checkbox" name="supplier_id" value="{{ supplier['id'] }}"><span><strong>{{ supplier['name'] }}</strong><small>{{ supplier['city'] }}, {{ supplier['country'] }}</small></span></label>{% else %}<p class="empty">Aún no hay proveedores disponibles. Registra o aprueba una relación comercial primero.</p>{% endfor %}
+      </fieldset>
+    </div>
+    <div class="buying-submit"><div><small>Precio total</small><strong>Por cotizar</strong></div><button class="button primary" type="submit" {% if not suppliers %}disabled{% endif %}>Solicitar cotizaciones</button></div>
+    <p class="muted" id="buying-message" role="status">No se genera una orden de compra hasta que revises y apruebes las propuestas.</p>
+  </section>
+  <section class="panel buying-guide" aria-labelledby="guide-heading"><div class="buying-card-head"><h2 id="guide-heading">Tu compra habitual</h2></div>
+    <p class="muted">Basada únicamente en tu solicitud más reciente. Puedes agregar productos uno por uno.</p>
+    {% if usual_items %}<div class="guide-lines">{% for item in usual_items %}<div class="guide-line"><div><strong>{{ item['product'] }}</strong><small>{{ item['quantity'] }} {{ item['unit'] }}{% if item['specification'] %} · {{ item['specification'] }}{% endif %}</small></div><button class="button small guide-add" type="button" data-product="{{ item['product'] }}" data-unit="{{ item['unit'] }}" data-spec="{{ item['specification'] }}" data-quantity="{{ item['quantity'] }}">Agregar</button></div>{% endfor %}</div>{% else %}<p class="empty">Cuando envíes tu primera solicitud, aparecerán aquí los productos que sueles pedir.</p>{% endif %}
+  </section>
+  <section class="panel buying-history"><div class="buying-card-head"><h2>Historial de compras</h2></div><p class="muted">Solicitudes de tu empresa; cada proveedor ve solamente las que le enviaste.</p>
+    {% if purchase_history %}<div class="table-wrap"><table class="buying-history-table"><thead><tr><th>Solicitud</th><th>Productos</th><th>Estado</th><th>Fecha requerida</th><th></th></tr></thead><tbody>{% for item in purchase_history %}<tr><td><strong>#{{ item['id'] }}</strong></td><td>{{ item['product'] }}{% if item['item_count'] > 1 %} · {{ item['item_count'] }} productos{% endif %}</td><td><span class="pill">{{ item['status']|status_es }}</span></td><td>{{ item['required_date'] }}</td><td><a class="button small" href="{{ url_for('rfq_detail',rfq_id=item['id']) }}">Ver detalles</a></td></tr>{% endfor %}</tbody></table></div>{% else %}<p class="empty">Todavía no hay solicitudes.</p>{% endif %}
+  </section>
+  <section class="panel buying-products"><div class="buying-card-head"><h2>Productos para surtir</h2></div><p class="muted">Tus productos solicitados anteriormente. Si falta uno, agrégalo abajo. Los proveedores cotizarán disponibilidad y precio.</p>
+    <label for="product-search" class="visually-hidden">Filtrar productos</label><input id="product-search" class="buying-search" type="search" placeholder="Buscar producto…" autocomplete="off">
+    <div class="product-grid" id="product-grid">{% for item in recent_products %}<div class="product-cell" data-search="{{ (item['product'] ~ ' ' ~ item['specification'] ~ ' ' ~ item['unit'])|lower }}"><div class="product-main"><strong>{{ item['product'] }}</strong><small>{{ item['unit'] }}{% if item['specification'] %} · {{ item['specification'] }}{% endif %}</small></div><button type="button" class="button small catalog-add" data-product="{{ item['product'] }}" data-unit="{{ item['unit'] }}" data-spec="{{ item['specification'] }}">Agregar</button></div>{% else %}<p class="empty">Aún no hay productos en tu historial. Agrega el primero aquí abajo.</p>{% endfor %}</div>
+    <div class="new-product form-stack"><h3>Agregar otro producto</h3><div class="two"><label>Nombre<input id="new-product-name" maxlength="160" placeholder="Tomate Roma"></label><label>Unidad<input id="new-product-unit" maxlength="30" placeholder="cajas"></label></div><label>Presentación o requisitos<input id="new-product-spec" maxlength="500" placeholder="Calibre, empaque, calidad"></label><button type="button" id="add-product" class="button">Agregar a mi compra</button></div>
+  </section>
+</form>
+<script defer src="{{ url_for('static',filename='buying.js') }}"></script>
 {% endblock %}

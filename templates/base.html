@@ -11,14 +11,16 @@
   <header class="topbar">
     <div class="brandbox"><a class="brandmark" href="{{ url_for('dashboard') }}" aria-label="Red B2B, inicio">B2B</a><div><a class="brand" href="{{ url_for('dashboard') }}">Red B2B</a><div class="brand-sub">Compras y proveedores</div></div></div>
     <div class="top-actions"><span class="company-name">{{ g.user['company_name'] }}</span>
-      <details class="mobile-menu"><summary>☰ Menú</summary><nav aria-label="Menú móvil"><a href="{{ url_for('dashboard') }}">Inicio</a><a href="{{ url_for('new_rfq') }}">Nueva solicitud</a><a href="{{ url_for('supplier_directory') }}">Proveedores</a><a href="{{ url_for('relationships') }}">Relaciones</a><a href="{{ url_for('supplier_profile') }}">Mi perfil</a></nav></details>
+      <details class="mobile-menu"><summary>☰ Menú</summary><nav aria-label="Menú móvil"><a href="{{ url_for('dashboard') }}">Inicio</a><a href="{{ url_for('buying_home') }}">Compras a proveedores</a><a href="{{ url_for('manage_products') }}">Configurar productos</a><a href="{{ url_for('new_rfq') }}">Solicitar cotizaciones</a><a href="{{ url_for('supplier_directory') }}">Proveedores</a><a href="{{ url_for('relationships') }}">Relaciones</a><a href="{{ url_for('supplier_profile') }}">Mi perfil</a></nav></details>
       <form method="post" action="{{ url_for('logout') }}"><input type="hidden" name="csrf" value="{{ csrf_token }}"><button class="header-button">Salir</button></form>
     </div>
   </header>
   <div class="shell">
     <aside class="sidebar"><nav aria-label="Navegación principal">
       <a class="{{ 'active' if request.endpoint == 'dashboard' }}" href="{{ url_for('dashboard') }}">Inicio</a>
-      <a class="{{ 'active' if request.endpoint == 'new_rfq' }}" href="{{ url_for('new_rfq') }}">Nueva solicitud</a>
+      <a class="{{ 'active' if request.endpoint == 'buying_home' }}" href="{{ url_for('buying_home') }}">Compras a proveedores</a>
+      <a class="{{ 'active' if request.endpoint == 'manage_products' }}" href="{{ url_for('manage_products') }}">Configurar productos</a>
+      <a class="{{ 'active' if request.endpoint == 'new_rfq' }}" href="{{ url_for('new_rfq') }}">Solicitar cotizaciones</a>
       <a class="{{ 'active' if request.endpoint == 'supplier_directory' }}" href="{{ url_for('supplier_directory') }}">Proveedores</a>
       <a class="{{ 'active' if request.endpoint == 'relationships' }}" href="{{ url_for('relationships') }}">Relaciones</a>
       <a class="{{ 'active' if request.endpoint == 'supplier_profile' }}" href="{{ url_for('supplier_profile') }}">Mi perfil</a>
