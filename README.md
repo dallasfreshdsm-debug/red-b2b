@@ -2,6 +2,12 @@
 
 Prototipo funcional separado de Dallas Fresh App y Dallas Fresh Connector. No importa, modifica ni sincroniza datos de esos sistemas. Incluye registro de empresas, perfiles de proveedor, modalidades de entrega, solicitudes de relación comercial, RFQ de varios productos, propuestas y conversaciones privadas, selección de proveedor por producto, órdenes de compra individuales, liberación y recepción por producto. La base del primer ciclo se actualiza sin borrar sus órdenes anteriores.
 
+## Compras a proveedores
+
+La nueva opción **Compras a proveedores** mantiene el patrón del pedido que ve el cliente de Dallas Fresh, con un encabezado y color propios para reconocer que ahora la empresa compra a *sus* proveedores. En **Configurar productos**, registra nombre, caja y unidad de venta, unidades por caja (por ejemplo 25 lb), conteo, stock objetivo, días para surtir, merma adicional y precios privados vigentes por proveedor. Ingresa ventas, merma o consumo interno en la unidad de venta. La pantalla **Mi compra** muestra una estimación de cajas, deja corregir cantidades y elegir otro proveedor aunque cueste más; al confirmar crea órdenes internas agrupadas por proveedor. El proveedor ve la suya en Inicio, la libera y el comprador confirma la recepción completa. El historial del comprador permite filtrar todas las órdenes por fecha y proveedor.
+
+La estimación toma un conteo inicial, descuenta los consumos registrados desde ese conteo, incluye órdenes abiertas y ventas medias de los últimos 30 días para el plazo configurado, y redondea la necesidad a cajas. La predicción solo conoce los consumos ingresados aquí; **QuickBooks está previsto como fuente de solo lectura pero aún no está conectado**. Las órdenes internas tampoco escriben en QuickBooks. Consulta `docs/QUICKBOOKS_COMPRAS.md` antes de activar una integración real. No mezcles monedas en una misma confirmación ni interpretes los precios introducidos por el comprador como cotizaciones confirmadas por el proveedor.
+
 ## Ejecutar localmente
 
 ```bash

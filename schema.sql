@@ -158,3 +158,50 @@ CREATE INDEX IF NOT EXISTS idx_quote_items_quote ON quote_items(quote_id, rfq_it
 CREATE INDEX IF NOT EXISTS idx_pos_buyer ON purchase_orders(buyer_id, status);
 CREATE INDEX IF NOT EXISTS idx_pos_supplier ON purchase_orders(supplier_id, status);
 CREATE INDEX IF NOT EXISTS idx_po_items_po ON po_items(po_id, rfq_item_id);
+
+-- Buyer-owned replenishment data. The source remains explicit; no QuickBooks writes.
+CREATE TABLE IF NOT EXISTS buyer_products (
+  id INTEGER PRIMARY KEY, buyer_id INTEGER NOT NULL REFERENCES companies(id),
+  name TEXT NOT NULL, purchase_unit TEXT NOT NULL DEFAULT 'caja',
+  sale_unit TEXT NOT NULL DEFAULT 'lb', pack_size TEXT NOT NULL DEFAULT '1',
+  stock_target TEXT NOT NULL DEFAULT '0', stock_snapshot TEXT NOT NULL DEFAULT '0',
+  snapshot_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  snapshot_usage_id INTEGER NOT NULL DEFAULT 0,
+  lead_days INTEGER NOT NULL DEFAULT 1 CHECK(lead_days BETWEEN 0 AND 90),
+  waste_percent TEXT NOT NULL DEFAULT '0',
+  source TEXT NOT NULL DEFAULT 'manual',
+  UNIQUE(id,buyer_id)
+);
+CREATE TABLE IF NOT EXISTS product_usage (
+  id INTEGER PRIMARY KEY, buyer_id INTEGER NOT NULL REFERENCES companies(id),
+  product_id INTEGER NOT NULL REFERENCES buyer_products(id),
+  quantity TEXT NOT NULL, kind TEXT NOT NULL CHECK(kind IN ('sale','waste','internal','receipt')),
+  occurred_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, source TEXT NOT NULL DEFAULT 'manual'
+);
+CREATE INDEX IF NOT EXISTS idx_usage_product ON product_usage(buyer_id,product_id,occurred_at);
+CREATE TABLE IF NOT EXISTS product_offers (
+  id INTEGER PRIMARY KEY, buyer_id INTEGER NOT NULL REFERENCES companies(id),
+  product_id INTEGER NOT NULL REFERENCES buyer_products(id),
+  supplier_id INTEGER NOT NULL REFERENCES companies(id),
+  unit_price_cents INTEGER NOT NULL CHECK(unit_price_cents>=0),
+  currency TEXT NOT NULL CHECK(currency IN ('USD','MXN')),
+  valid_until TEXT NOT NULL, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(buyer_id,product_id,supplier_id)
+);
+CREATE TABLE IF NOT EXISTS direct_orders (
+  id INTEGER PRIMARY KEY, buyer_id INTEGER NOT NULL REFERENCES companies(id),
+  supplier_id INTEGER NOT NULL REFERENCES companies(id),
+  currency TEXT NOT NULL CHECK(currency IN ('USD','MXN')),
+  total_cents INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'pending_release'
+    CHECK(status IN ('pending_release','released','received')),
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS direct_order_items (
+  id INTEGER PRIMARY KEY, order_id INTEGER NOT NULL REFERENCES direct_orders(id),
+  product_id INTEGER NOT NULL REFERENCES buyer_products(id),
+  product_name TEXT NOT NULL, purchase_unit TEXT NOT NULL,
+  pack_size TEXT NOT NULL, quantity INTEGER NOT NULL CHECK(quantity>0),
+  unit_price_cents INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_direct_buyer ON direct_orders(buyer_id,created_at);
+CREATE INDEX IF NOT EXISTS idx_direct_supplier ON direct_orders(supplier_id,created_at);

@@ -244,8 +244,13 @@ def dashboard():
         "WHERE p.buyer_id=? OR p.supplier_id=? ORDER BY p.id DESC",
         (company, company),
     ).fetchall()
+    direct_incoming = db.execute(
+        "SELECT o.id,o.created_at,o.status,o.currency,o.total_cents,c.name AS buyer_name "
+        "FROM direct_orders o JOIN companies c ON c.id=o.buyer_id "
+        "WHERE o.supplier_id=? ORDER BY o.id DESC", (company,),
+    ).fetchall()
     return render_template("dashboard.html", purchases=purchases,
-                           invitations=invitations, orders=orders)
+                           invitations=invitations, orders=orders, direct_incoming=direct_incoming)
 
 
 @app.get("/proveedores")
@@ -404,6 +409,25 @@ def logout():
 @admin_required
 def new_rfq():
     db = get_db()
+    buyer_id = g.user["company_id"]
+    # A buyer's own past requests are suggestions, never a supplier's catalog or price list.
+    recent_products = db.execute(
+        "SELECT ri.product,ri.unit,ri.specification,COUNT(*) AS times_requested "
+        "FROM rfq_items ri JOIN rfqs r ON r.id=ri.rfq_id WHERE r.buyer_id=? "
+        "GROUP BY ri.product,ri.unit,ri.specification "
+        "ORDER BY MAX(r.id) DESC LIMIT 30", (buyer_id,),
+    ).fetchall()
+    purchase_history = db.execute(
+        "SELECT r.id,r.product,r.status,r.required_date,r.created_at, "
+        "(SELECT COUNT(*) FROM rfq_items ri WHERE ri.rfq_id=r.id) AS item_count "
+        "FROM rfqs r WHERE r.buyer_id=? ORDER BY r.id DESC LIMIT 10", (buyer_id,),
+    ).fetchall()
+    usual_items = []
+    if purchase_history:
+        usual_items = db.execute(
+            "SELECT product,quantity,unit,specification FROM rfq_items "
+            "WHERE rfq_id=? ORDER BY position LIMIT 8", (purchase_history[0]["id"],),
+        ).fetchall()
     suppliers = db.execute(
         "SELECT c.id,c.name,c.city,c.country FROM companies c "
         "LEFT JOIN supplier_profiles p ON p.company_id=c.id "
@@ -466,7 +490,9 @@ def new_rfq():
             return redirect(url_for("rfq_detail", rfq_id=rfq_id))
         except (ValueError, OverflowError) as exc:
             flash(str(exc))
-    return render_template("new_rfq.html", suppliers=suppliers)
+    return render_template("new_rfq.html", suppliers=suppliers,
+                           recent_products=recent_products,
+                           purchase_history=purchase_history, usual_items=usual_items)
 
 
 def accessible_rfq(rfq_id):
@@ -899,6 +925,9 @@ def receive_line(po_id, po_item_id):
     return redirect(url_for("po_detail", po_id=po_id))
 
 
+from procurement import install as install_procurement
+
+install_procurement(app, get_db, admin_required, login_required, audit, decimal_value, cents_value)
 init_db()
 
 if __name__ == "__main__":

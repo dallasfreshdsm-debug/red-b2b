@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: red-b2b-pruebas
+    runtime: python
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --workers 1 --bind 0.0.0.0:$PORT app:app
+    disk:
+      name: red-b2b-datos
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: B2B_DATABASE
+        value: /var/data/red_b2b.sqlite3
+      - key: B2B_SECRET_KEY
+        generateValue: true
+      - key: B2B_SECURE_COOKIE
+        value: "1"
+      - key: B2B_DEMO_PASSWORD
+        sync: false
