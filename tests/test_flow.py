@@ -144,6 +144,26 @@ class BuyerSupplierFlow(unittest.TestCase):
         self.post(self.supplier_a, "/relaciones/1/aprobar", {})
         self.assertIn(b"Proveedor</strong>", self.buyer.get("/solicitudes/nueva").data)
 
+    def test_buyer_workspace_uses_only_own_purchase_history(self):
+        self.register(self.buyer, "Comprador", "buy@example.com")
+        self.register(self.supplier_a, "Proveedor", "supplier@example.com")
+        self.register(self.outsider, "Ajeno", "outsider@example.com")
+        self.post(self.buyer, "/solicitudes/nueva", {
+            "item_product": ["Tomate Roma"],
+            "item_specification": ["Caja 25 lb"],
+            "item_quantity": ["40"], "item_unit": ["cajas"],
+            "destination": "Dallas", "required_date": "2099-01-01",
+            "supplier_id": ["2"],
+        })
+        page = self.buyer.get("/solicitudes/nueva").data
+        self.assertIn(b"Mi compra", page)
+        self.assertIn(b"Tomate Roma", page)
+        self.assertIn(b"Tu compra habitual", page)
+        self.assertNotIn(b'data-product="Tomate Roma"', self.outsider.get("/solicitudes/nueva").data)
+        script = self.buyer.get("/statics/buying.js")
+        self.assertEqual(script.status_code, 200)
+        script.close()
+
 
 if __name__ == "__main__":
     unittest.main()
